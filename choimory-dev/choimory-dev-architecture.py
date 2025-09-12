@@ -1,6 +1,6 @@
 from diagrams import Diagram, Cluster
 from diagrams.onprem.client import Users
-from diagrams.onprem.queue import Rabbitmq
+from diagrams.onprem.queue import Kafka
 from diagrams.programming.language import Kotlin, Nodejs, Java
 from diagrams.programming.framework import Nextjs
 from diagrams.onprem.database import Postgresql, MongoDB
@@ -32,15 +32,15 @@ with Diagram("choimory-dev", direction="TB"):
         
         front >> member_api
     
-    with Cluster("Board"):
-        board_api = Kotlin("board-api")
-        board_queue = Kotlin("board-queue")
+    with Cluster("Article"):
+        article_api = Kotlin("article-api")
+        article_queue = Kotlin("article-queue")
 
-        board_command = Postgresql("board-command")
-        board_query = Elasticsearch("board-query")
-        board_redis = Redis("board-redis")
+        article_command = Postgresql("article-command")
+        article_query = Elasticsearch("article-query")
+        article_redis = Redis("article-redis")
 
-        front >> board_api
+        front >> article_api
 
     with Cluster("Memo"):
         memo_api = Nodejs("memo-api")
@@ -51,6 +51,15 @@ with Diagram("choimory-dev", direction="TB"):
         memo_redis = Redis("memo-redis")
 
         front >> memo_api
+    
+    with Cluster("Sender"):
+        sender_queue = Kotlin("sender-queue")
+
+        sender_command = Postgresql("sender-command")
+        sender_query = MongoDB("sender-query")
+        sender_redis = Redis("sender-redis")
+
+        [member_api, article_api, memo_api] >> sender_queue
 
     with Cluster("Notification"):
         noti_api = Nodejs("noti-api")
@@ -62,18 +71,15 @@ with Diagram("choimory-dev", direction="TB"):
         noti_redis = Redis("noti-redis-pubsub")
         noti_fcm = FCM("noti-fcm")
 
-        front >> noti_api
         front - noti_socket
+        front >> noti_api
         noti_queue >> noti_redis >> noti_socket
         noti_queue >> noti_fcm
 
     with Cluster("Message broker"):
-        broker = Rabbitmq("broker")
+        broker = Kafka("broker")
 
-        memo_queue - broker
-        board_queue - broker
-        member_queue - broker
-        noti_queue - broker
+        [member_queue, article_queue, memo_queue, sender_queue, noti_queue] - broker
 
     with Cluster("Logging"):
         logstash = LogStash("logstash")
